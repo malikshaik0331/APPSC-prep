@@ -1,0 +1,27 @@
+name: Daily APPSC Group 2 Question Generator
+
+on:
+  schedule:
+    # Runs daily at 14:30 UTC = 8:00 PM IST (ahead of your 8:45 PM mock test)
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+    # Lets you trigger a run manually anytime from the GitHub Actions tab
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate and upload 30 APPSC questions to Supabase
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python3 scripts/generate_daily_questions
