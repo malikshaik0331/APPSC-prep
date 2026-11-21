@@ -39,7 +39,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
 - "source": standard reference (e.g., "NCERT", "Telugu Akademi", "Bipan Chandra", "PIB / AP Govt")
 """
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -51,12 +51,21 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY,
+            "User-Agent": "Mozilla/5.0",
+        },
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        body = err.read().decode("utf-8", errors="replace")
+        print(f"Gemini API HTTP {err.code} response: {body}")
+        raise
 
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     questions = json.loads(raw_text)
@@ -100,15 +109,20 @@ def insert_into_supabase(questions: list[dict]) -> None:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        if resp.status not in (200, 201):
-            raise RuntimeError(f"Supabase insert returned HTTP {resp.status}")
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            if resp.status not in (200, 201):
+                raise RuntimeError(f"Supabase insert returned HTTP {resp.status}")
+    except urllib.error.HTTPError as err:
+        body = err.read().decode("utf-8", errors="replace")
+        print(f"Supabase HTTP {err.code} response: {body}")
+        raise
 
 
 def main() -> None:
     now_ist = datetime.now(IST)
     subject, focus = ROTATION[now_ist.weekday()]
-    print(f"[{now_ist.isoformat()}] Generating 30 questions for: {subject}")
+    print(f"[{now_ist.isoformat()}] Generating 30 questions for: {subject} (key len={len(GEMINI_API_KEY)})")
     questions = fetch_questions_from_gemini(subject, focus, count=30)
     insert_into_supabase(questions)
     print(f"Successfully inserted {len(questions)} {subject} questions into Supabase.")
