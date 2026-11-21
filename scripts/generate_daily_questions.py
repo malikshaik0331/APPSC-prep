@@ -110,7 +110,7 @@ def insert_into_supabase(questions: list[dict]) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=300) as resp:
             if resp.status not in (200, 201):
                 raise RuntimeError(f"Supabase insert returned HTTP {resp.status}")
     except urllib.error.HTTPError as err:
