@@ -39,7 +39,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
 - "source": standard reference (e.g., "NCERT", "Telugu Akademi", "Bipan Chandra", "PIB / AP Govt")
 """
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
