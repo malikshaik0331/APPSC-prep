@@ -60,7 +60,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=300) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as err:
         body = err.read().decode("utf-8", errors="replace")
