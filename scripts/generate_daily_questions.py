@@ -15,7 +15,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # Individual Subject Focus Definitions (Static Prelims & Mains strictly separated; Current Affairs handled via personal notes)
 SUBJECT_FOCUS = {
     # --- STATIC PRELIMS SUBJECTS ---
-    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Satavahanas, Harshavardhana, art, architecture, and inscriptions",
+    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Harshavardhana, art, architecture, and inscriptions",
     "Medieval Indian History (Basic)": "BASIC foundational level only (NCERT/introductory): Delhi Sultanate chronology, major Mughal rulers (Babur to Aurangzeb), Bhakti & Sufi saints, and Vijayanagara/Bahmani basics—no obscure minutiae",
     "Modern Indian History": "1857 Revolt, socio-religious reforms, INC phases, Gandhian movements, revolutionary nationalism, Constitutional Acts (1773-1947), and freedom struggle in Andhra",
     "Indian Geography": "Physiography, drainage systems, Indian monsoon, soils, natural vegetation, agriculture, minerals, energy resources, and demographics",
