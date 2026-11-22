@@ -11,16 +11,15 @@ TARGET_SUBJECT = os.environ.get("TARGET_SUBJECT", "Auto (Calendar Schedule)").st
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
-# Individual Subject Focus Definitions (Prelims & Mains strictly separated)
+# Individual Subject Focus Definitions (Static Prelims & Mains strictly separated; Current Affairs handled via personal notes)
 SUBJECT_FOCUS = {
-    # --- PRELIMS SUBJECTS ---
-    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Harshavardhana, art, architecture, and inscriptions",
+    # --- STATIC PRELIMS SUBJECTS ---
+    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Satavahanas, Harshavardhana, art, architecture, and inscriptions",
     "Medieval Indian History (Basic)": "BASIC foundational level only (NCERT/introductory): Delhi Sultanate chronology, major Mughal rulers (Babur to Aurangzeb), Bhakti & Sufi saints, and Vijayanagara/Bahmani basics—no obscure minutiae",
     "Modern Indian History": "1857 Revolt, socio-religious reforms, INC phases, Gandhian movements, revolutionary nationalism, Constitutional Acts (1773-1947), and freedom struggle in Andhra",
     "Indian Geography": "Physiography, drainage systems, Indian monsoon, soils, natural vegetation, agriculture, minerals, energy resources, and demographics",
     "AP Geography": "Andhra Pradesh physiography, Godavari/Krishna/Penna river basins, soils, cropping patterns, irrigation projects, minerals, ports, and 26-district geography",
     "Indian Society": "Family, marriage, kinship, caste & tribe dynamics, women/SC/ST/OBC constitutional safeguards, secularism, regionalism, and welfare policies",
-    "Current Affairs (Aug-Dec 2026)": "National, International, and Andhra Pradesh current affairs from August 2026 to December 2026: schemes, summits, indices, awards, sports, and appointments",
     # --- MAINS SUBJECTS (Individual Subject-Wise Tests Only - Never mixed into Prelims) ---
     "AP History": "Satavahanas, Ikshvakus, Eastern Chalukyas of Vengi, Kakatiyas, Reddis, Vijayanagara Empire, Qutb Shahis, and Modern Andhra / Andhra Movement",
     "Polity": "Preamble, Fundamental Rights, DPSP, Fundamental Duties, Parliament & State Legislature, Judiciary, Federalism, Panchayati Raj (73rd/74th), and Constitutional/Statutory bodies",
@@ -28,25 +27,25 @@ SUBJECT_FOCUS = {
     "AP Economy": "AP Socio-Economic Survey, GSDP & sectoral composition, AP state budget, Navaratnalu & welfare schemes, industrial corridors, and agriculture/MSMEs in AP",
     "Science and Technology": "ISRO missions, DRDO defence tech, biotechnology & vaccines, AI/quantum computing, nuclear energy, ICT/digital public infrastructure, and space/cyber policy",
     "Environment and Ecology": "Biodiversity hotspots, protected areas (AP & India), Wildlife Protection Act, climate change treaties (COP/Paris), EIA, pollution control, and Ramsar wetlands",
-    # --- COMBINED PRELIMS FULL-LENGTH MOCK ---
+    # --- COMBINED STATIC PRELIMS FULL-LENGTH MOCK ---
     "Prelims Full-Length Mock": (
-        "Full-length APPSC Group 2 Prelims mock covering ONLY Prelims subjects: "
+        "Full-length APPSC Group 2 Prelims mock covering ONLY static Prelims subjects: "
         "(1) Ancient Indian History, (2) BASIC-level Medieval Indian History only, "
-        "(3) Modern Indian History, (4) Geography of India & Andhra Pradesh, "
-        "(5) Indian Society, and (6) Current Affairs from August 2026 to December 2026. "
-        "DO NOT include Mains-only subjects (no AP History, Polity, Economy, S&T, or Environment)."
+        "(3) Modern Indian History, (4) Geography of India & Andhra Pradesh, and "
+        "(5) Indian Society. "
+        "DO NOT include Current Affairs (handled separately) and DO NOT include Mains-only subjects (no AP History, Polity, Economy, S&T, or Environment)."
     ),
 }
 
-# Calendar-Synced Weekday Rotation (through Dec 14, 2026)
-# Mon: Current Affairs | Tue: Ancient History | Wed: Geography | Thu: Indian Society | Fri: Modern History
+# Calendar-Synced Static Prelims Weekday Rotation (through Dec 14, 2026)
+# Mon: AP Geography | Tue: Ancient History | Wed: Indian Geography | Thu: Indian Society | Fri: Modern History
 CALENDAR_WEEKDAY_MAP = {
-    0: "Current Affairs (Aug-Dec 2026)",
+    0: "AP Geography",
     1: "Ancient Indian History",
     2: "Indian Geography",
     3: "Indian Society",
     4: "Modern Indian History",
-    5: "Prelims Full-Length Mock",  # Weekend consolidation / mixed Prelims
+    5: "Prelims Full-Length Mock",
     6: "Prelims Full-Length Mock",
 }
 
@@ -54,13 +53,9 @@ CALENDAR_WEEKDAY_MAP = {
 def resolve_subject_for_today(today_ist: date) -> str:
     if TARGET_SUBJECT in SUBJECT_FOCUS:
         return TARGET_SUBJECT
-    # On Dec 15 (Grand Prelims Mock) and Dec 16 - Dec 31: Full-Length Prelims Mock ONLY
+    # On Dec 15 (Grand Prelims Mock) and Dec 16 - Dec 31: Full-Length Static Prelims Mock ONLY
     if today_ist >= date(2026, 12, 15):
         return "Prelims Full-Length Mock"
-    # Through Dec 14: follow exact Google Calendar weekday rotation
-    # Alternate Wednesday between Indian Geography and AP Geography
-    if today_ist.weekday() == 2 and (today_ist.isocalendar()[1] % 2 == 0):
-        return "AP Geography"
     return CALENDAR_WEEKDAY_MAP[today_ist.weekday()]
 
 
@@ -87,7 +82,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
 - "option_d": string
 - "correct_option": "A", "B", "C", or "D"
 - "explanation": concise 2-sentence explanation clarifying why each statement is right or wrong
-- "source": standard reference (e.g., "NCERT", "Bipan Chandra", "Telugu Akademi", "PIB / AP Govt")
+- "source": standard reference (e.g., "NCERT", "Bipan Chandra", "Telugu Akademi", "Ram Ahuja")
 """
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
