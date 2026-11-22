@@ -2,10 +2,31 @@ name: Daily APPSC Group 2 Question Generator
 
 on:
   schedule:
-    # Runs daily at 14:30 UTC = 8:00 PM IST (ahead of your 8:45 PM mock test)
+    # Runs daily at 14:30 UTC = 8:00 PM IST
     - cron: '30 14 * * *'
   workflow_dispatch:
-    # Lets you trigger a run manually anytime from the GitHub Actions tab
+    inputs:
+      subject:
+        description: 'Auto (Follow Calendar & Dec 16-31 Prelims Plan) OR pick an individual subject'
+        required: true
+        default: 'Auto (Calendar Schedule)'
+        type: choice
+        options:
+          - 'Auto (Calendar Schedule)'
+          - 'Prelims Full-Length Mock'
+          - 'Ancient Indian History'
+          - 'Medieval Indian History (Basic)'
+          - 'Modern Indian History'
+          - 'Indian Geography'
+          - 'AP Geography'
+          - 'Indian Society'
+          - 'Current Affairs (Aug-Dec 2026)'
+          - 'AP History'
+          - 'Polity'
+          - 'Indian Economy'
+          - 'AP Economy'
+          - 'Science and Technology'
+          - 'Environment and Ecology'
 
 jobs:
   generate:
@@ -19,9 +40,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Generate and upload 30 APPSC questions to Supabase
+      - name: Generate and upload 100 APPSC questions to Supabase
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TARGET_SUBJECT: ${{ github.event.inputs.subject || 'Auto (Calendar Schedule)' }}
         run: python3 scripts/generate_daily_questions.py
