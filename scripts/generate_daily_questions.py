@@ -2,41 +2,92 @@ import json
 import os
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"].strip()
 SUPABASE_URL = os.environ["SUPABASE_URL"].strip().rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_KEY"].strip()
+TARGET_SUBJECT = os.environ.get("TARGET_SUBJECT", "Auto (Calendar Schedule)").strip()
 
-# Weekday rotation aligned to your 8:45 PM APPSC Group 2 Prelims schedule (IST)
 IST = timezone(timedelta(hours=5, minutes=30))
-ROTATION = {
-    0: ("Geography", "Indian and Andhra Pradesh Geography, rivers, monsoons, soils, minerals, and demographics"),
-    1: ("Modern Indian History", "Modern Indian History (1857-1947), social reform movements, and freedom struggle in Andhra"),
-    2: ("Current Affairs", "Andhra Pradesh state schemes, PIB national highlights, Economy, Polity, and Science & Technology"),
-    3: ("Indian Society", "Indian Society structure, constitutional provisions, welfare schemes, and social issues"),
-    4: ("Ancient History", "Ancient Indian History, Indus Valley, Vedic age, Mauryas, Guptas, Satavahanas, and Ikshvakus"),
-    5: ("AP History", "Social and Cultural History of Andhra Pradesh: Satavahanas, Eastern Chalukyas, Kakatiyas, and Vijayanagara"),
-    6: ("AP History", "Mixed APPSC Group 2 Prelims high-yield revision across AP History, Polity, and Economy"),
+
+# Individual Subject Focus Definitions (Prelims & Mains strictly separated)
+SUBJECT_FOCUS = {
+    # --- PRELIMS SUBJECTS ---
+    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Harshavardhana, art, architecture, and inscriptions",
+    "Medieval Indian History (Basic)": "BASIC foundational level only (NCERT/introductory): Delhi Sultanate chronology, major Mughal rulers (Babur to Aurangzeb), Bhakti & Sufi saints, and Vijayanagara/Bahmani basics—no obscure minutiae",
+    "Modern Indian History": "1857 Revolt, socio-religious reforms, INC phases, Gandhian movements, revolutionary nationalism, Constitutional Acts (1773-1947), and freedom struggle in Andhra",
+    "Indian Geography": "Physiography, drainage systems, Indian monsoon, soils, natural vegetation, agriculture, minerals, energy resources, and demographics",
+    "AP Geography": "Andhra Pradesh physiography, Godavari/Krishna/Penna river basins, soils, cropping patterns, irrigation projects, minerals, ports, and 26-district geography",
+    "Indian Society": "Family, marriage, kinship, caste & tribe dynamics, women/SC/ST/OBC constitutional safeguards, secularism, regionalism, and welfare policies",
+    "Current Affairs (Aug-Dec 2026)": "National, International, and Andhra Pradesh current affairs from August 2026 to December 2026: schemes, summits, indices, awards, sports, and appointments",
+    # --- MAINS SUBJECTS (Individual Subject-Wise Tests Only - Never mixed into Prelims) ---
+    "AP History": "Satavahanas, Ikshvakus, Eastern Chalukyas of Vengi, Kakatiyas, Reddis, Vijayanagara Empire, Qutb Shahis, and Modern Andhra / Andhra Movement",
+    "Polity": "Preamble, Fundamental Rights, DPSP, Fundamental Duties, Parliament & State Legislature, Judiciary, Federalism, Panchayati Raj (73rd/74th), and Constitutional/Statutory bodies",
+    "Indian Economy": "National income, RBI & monetary policy, fiscal policy & Union Budget, inflation, banking reforms, WTO/external sector, NITI Aayog, and flagship schemes",
+    "AP Economy": "AP Socio-Economic Survey, GSDP & sectoral composition, AP state budget, Navaratnalu & welfare schemes, industrial corridors, and agriculture/MSMEs in AP",
+    "Science and Technology": "ISRO missions, DRDO defence tech, biotechnology & vaccines, AI/quantum computing, nuclear energy, ICT/digital public infrastructure, and space/cyber policy",
+    "Environment and Ecology": "Biodiversity hotspots, protected areas (AP & India), Wildlife Protection Act, climate change treaties (COP/Paris), EIA, pollution control, and Ramsar wetlands",
+    # --- COMBINED PRELIMS FULL-LENGTH MOCK ---
+    "Prelims Full-Length Mock": (
+        "Full-length APPSC Group 2 Prelims mock covering ONLY Prelims subjects: "
+        "(1) Ancient Indian History, (2) BASIC-level Medieval Indian History only, "
+        "(3) Modern Indian History, (4) Geography of India & Andhra Pradesh, "
+        "(5) Indian Society, and (6) Current Affairs from August 2026 to December 2026. "
+        "DO NOT include Mains-only subjects (no AP History, Polity, Economy, S&T, or Environment)."
+    ),
+}
+
+# Calendar-Synced Weekday Rotation (through Dec 14, 2026)
+# Mon: Current Affairs | Tue: Ancient History | Wed: Geography | Thu: Indian Society | Fri: Modern History
+CALENDAR_WEEKDAY_MAP = {
+    0: "Current Affairs (Aug-Dec 2026)",
+    1: "Ancient Indian History",
+    2: "Indian Geography",
+    3: "Indian Society",
+    4: "Modern Indian History",
+    5: "Prelims Full-Length Mock",  # Weekend consolidation / mixed Prelims
+    6: "Prelims Full-Length Mock",
 }
 
 
-def fetch_questions_from_gemini(subject: str, focus: str, count: int = 30) -> list[dict]:
-    prompt = f"""Generate {count} original, high-yield APPSC Group 2 Prelims multiple-choice questions on "{subject}" ({focus}).
-Follow APPSC Group 2 standard: include a mix of direct factual, statement-based ("Consider the following statements..."), and chronological/matching questions.
+def resolve_subject_for_today(today_ist: date) -> str:
+    if TARGET_SUBJECT in SUBJECT_FOCUS:
+        return TARGET_SUBJECT
+    # On Dec 15 (Grand Prelims Mock) and Dec 16 - Dec 31: Full-Length Prelims Mock ONLY
+    if today_ist >= date(2026, 12, 15):
+        return "Prelims Full-Length Mock"
+    # Through Dec 14: follow exact Google Calendar weekday rotation
+    # Alternate Wednesday between Indian Geography and AP Geography
+    if today_ist.weekday() == 2 and (today_ist.isocalendar()[1] % 2 == 0):
+        return "AP Geography"
+    return CALENDAR_WEEKDAY_MAP[today_ist.weekday()]
+
+
+def fetch_questions_from_gemini(subject: str, focus: str, count: int = 25, batch_num: int = 1) -> list[dict]:
+    basic_note = ""
+    if "Medieval" in subject or subject == "Prelims Full-Length Mock":
+        basic_note = "- IMPORTANT: For Medieval Indian History questions, keep them strictly at a BASIC foundational level (major dynasties, rulers, monuments, Bhakti/Sufi basics).\n"
+
+    prompt = f"""Generate {count} analytical, APPSC Group 2-standard multiple-choice questions on "{subject}" ({focus}) — Batch {batch_num} of 4.
+
+STRICT QUALITY RULES:
+- At least 75% MUST be multi-statement or analytical questions (e.g., "Consider the following statements: 1... 2... 3... Which of the statements given above is/are correct?", "How many of the above pairs are correctly matched?", "Assertion (A) and Reason (R)", "Arrange in chronological order", or "Match List-I with List-II").
+{basic_note}- Avoid simple one-line recall questions (except for basic Medieval India). Test conceptual linkages, exceptions, chronology, and cause-and-effect.
+- Format multi-statement questions with clean line breaks (\\n) between numbered statements so they are easy to read on screen.
 
 Return ONLY a valid JSON array of {count} objects. Each object must have these exact keys:
 - "subject": "{subject}"
-- "topic": short specific sub-topic string
-- "difficulty": "Easy", "Moderate", or "Hard"
-- "question_text": full question text
+- "topic": short specific sub-topic string (for Full-Length Mock, put the Prelims subject name here, e.g. "Modern History", "AP Geography", "Indian Society")
+- "difficulty": "Moderate" or "Hard" (use "Easy" for basic Medieval India)
+- "question_text": full question text with \\n line breaks
 - "option_a": string
 - "option_b": string
 - "option_c": string
 - "option_d": string
 - "correct_option": "A", "B", "C", or "D"
-- "explanation": concise 1-2 sentence explanation citing relevant facts, articles, or dates
-- "source": standard reference (e.g., "NCERT", "Telugu Akademi", "Bipan Chandra", "PIB / AP Govt")
+- "explanation": concise 2-sentence explanation clarifying why each statement is right or wrong
+- "source": standard reference (e.g., "NCERT", "Bipan Chandra", "Telugu Akademi", "PIB / AP Govt")
 """
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
@@ -90,7 +141,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
                 "option_d": str(q["option_d"]),
                 "correct_option": correct,
                 "explanation": str(q.get("explanation", "")),
-                "source": str(q.get("source", "AI Daily Mock")),
+                "source": str(q.get("source", "Standard Reference")),
             }
         )
     return cleaned
@@ -110,7 +161,7 @@ def insert_into_supabase(questions: list[dict]) -> None:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
+        with urllib.request.urlopen(req, timeout=60) as resp:
             if resp.status not in (200, 201):
                 raise RuntimeError(f"Supabase insert returned HTTP {resp.status}")
     except urllib.error.HTTPError as err:
@@ -121,11 +172,17 @@ def insert_into_supabase(questions: list[dict]) -> None:
 
 def main() -> None:
     now_ist = datetime.now(IST)
-    subject, focus = ROTATION[now_ist.weekday()]
-    print(f"[{now_ist.isoformat()}] Generating 30 questions for: {subject} (key len={len(GEMINI_API_KEY)})")
-    questions = fetch_questions_from_gemini(subject, focus, count=30)
-    insert_into_supabase(questions)
-    print(f"Successfully inserted {len(questions)} {subject} questions into Supabase.")
+    subject = resolve_subject_for_today(now_ist.date())
+    focus = SUBJECT_FOCUS[subject]
+
+    print(f"[{now_ist.isoformat()}] Generating 100 analytical questions (4x25) for: {subject}")
+    all_questions = []
+    for batch in range(1, 5):
+        batch_q = fetch_questions_from_gemini(subject, focus, count=25, batch_num=batch)
+        print(f"Batch {batch}/4: generated {len(batch_q)} questions.")
+        all_questions.extend(batch_q)
+    insert_into_supabase(all_questions)
+    print(f"Successfully inserted {len(all_questions)} {subject} questions into Supabase.")
 
 
 if __name__ == "__main__":
