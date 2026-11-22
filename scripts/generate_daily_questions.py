@@ -11,11 +11,12 @@ SUPABASE_KEY = os.environ["SUPABASE_KEY"].strip()
 TARGET_SUBJECT = os.environ.get("TARGET_SUBJECT", "Auto (Calendar Schedule)").strip()
 
 IST = timezone(timedelta(hours=5, minutes=30))
+PRIMARY_MODEL = "gemini-3.8-flash"
 
 # Individual Subject Focus Definitions (Static Prelims & Mains strictly separated; Current Affairs handled via personal notes)
 SUBJECT_FOCUS = {
     # --- STATIC PRELIMS SUBJECTS ---
-    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Harshavardhana, art, architecture, and inscriptions",
+    "Ancient Indian History": "Indus Valley, Vedic age, Buddhism & Jainism, Mauryas, Guptas, Satavahanas, Harshavardhana, art, architecture, and inscriptions",
     "Medieval Indian History (Basic)": "BASIC foundational level only (NCERT/introductory): Delhi Sultanate chronology, major Mughal rulers (Babur to Aurangzeb), Bhakti & Sufi saints, and Vijayanagara/Bahmani basics—no obscure minutiae",
     "Modern Indian History": "1857 Revolt, socio-religious reforms, INC phases, Gandhian movements, revolutionary nationalism, Constitutional Acts (1773-1947), and freedom struggle in Andhra",
     "Indian Geography": "Physiography, drainage systems, Indian monsoon, soils, natural vegetation, agriculture, minerals, energy resources, and demographics",
@@ -59,6 +60,50 @@ def resolve_subject_for_today(today_ist: date) -> str:
     return CALENDAR_WEEKDAY_MAP[today_ist.weekday()]
 
 
+def discover_backup_models() -> list[str]:
+    url = "https://generativelanguage.googleapis.com/v1beta/models"
+    req = urllib.request.Request(
+        url,
+        headers={"x-goog-api-key": GEMINI_API_KEY, "User-Agent": "Mozilla/5.0"},
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    models = []
+    for m in data.get("models", []):
+        name = m.get("name", "").replace("models/", "")
+        methods = m.get("supportedGenerationMethods", [])
+        if "generateContent" in methods and name != PRIMARY_MODEL and ("flash" in name or "pro" in name):
+            if "tts" not in name and "image" not in name and "audio" not in name:
+                models.append(name)
+    return sorted(models, reverse=True)
+
+
+def call_gemini_model(model: str, prompt: str) -> dict:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": 0.7,
+        },
+    }
+
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY,
+            "User-Agent": "Mozilla/5.0",
+        },
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def fetch_questions_from_gemini(subject: str, focus: str, count: int = 10, batch_num: int = 1, total_batches: int = 10) -> list[dict]:
     basic_note = ""
     if "Medieval" in subject or subject == "Prelims Full-Length Mock":
@@ -85,33 +130,22 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
 - "source": standard reference (e.g., "NCERT", "Bipan Chandra", "Telugu Akademi", "Ram Ahuja")
 """
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.7,
-        },
-    }
-
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": GEMINI_API_KEY,
-            "User-Agent": "Mozilla/5.0",
-        },
-        method="POST",
-    )
-
+    data = None
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as err:
-        body = err.read().decode("utf-8", errors="replace")
-        print(f"Gemini API HTTP {err.code} response: {body}")
-        raise
+        data = call_gemini_model(PRIMARY_MODEL, prompt)
+    except Exception as primary_err:
+        print(f"Primary model {PRIMARY_MODEL} unavailable ({primary_err}); discovering live backup models...")
+        for backup in discover_backup_models():
+            try:
+                print(f"Trying backup model: {backup}")
+                data = call_gemini_model(backup, prompt)
+                print(f"Succeeded with backup model: {backup}")
+                break
+            except Exception as err:
+                print(f"Backup model {backup} failed: {err}")
+                continue
+        if data is None:
+            raise RuntimeError(f"Primary and all backup models failed. Primary error: {primary_err}")
 
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     questions = json.loads(raw_text)
@@ -189,7 +223,7 @@ def main() -> None:
                 print(f"Batch {batch} attempt {attempt} failed: {exc}")
                 if attempt == 2:
                     raise
-                time.sleep(5)
+                time.sleep(15)
     print(f"Successfully inserted {total_inserted} {subject} questions into Supabase.")
 
 
