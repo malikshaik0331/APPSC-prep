@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -53,18 +54,17 @@ CALENDAR_WEEKDAY_MAP = {
 def resolve_subject_for_today(today_ist: date) -> str:
     if TARGET_SUBJECT in SUBJECT_FOCUS:
         return TARGET_SUBJECT
-    # On Dec 15 (Grand Prelims Mock) and Dec 16 - Dec 31: Full-Length Static Prelims Mock ONLY
     if today_ist >= date(2026, 12, 15):
         return "Prelims Full-Length Mock"
     return CALENDAR_WEEKDAY_MAP[today_ist.weekday()]
 
 
-def fetch_questions_from_gemini(subject: str, focus: str, count: int = 25, batch_num: int = 1) -> list[dict]:
+def fetch_questions_from_gemini(subject: str, focus: str, count: int = 10, batch_num: int = 1, total_batches: int = 10) -> list[dict]:
     basic_note = ""
     if "Medieval" in subject or subject == "Prelims Full-Length Mock":
         basic_note = "- IMPORTANT: For Medieval Indian History questions, keep them strictly at a BASIC foundational level (major dynasties, rulers, monuments, Bhakti/Sufi basics).\n"
 
-    prompt = f"""Generate {count} analytical, APPSC Group 2-standard multiple-choice questions on "{subject}" ({focus}) — Batch {batch_num} of 4.
+    prompt = f"""Generate {count} analytical, APPSC Group 2-standard multiple-choice questions on "{subject}" ({focus}) — Batch {batch_num} of {total_batches}.
 
 STRICT QUALITY RULES:
 - At least 75% MUST be multi-statement or analytical questions (e.g., "Consider the following statements: 1... 2... 3... Which of the statements given above is/are correct?", "How many of the above pairs are correctly matched?", "Assertion (A) and Reason (R)", "Arrange in chronological order", or "Match List-I with List-II").
@@ -106,7 +106,7 @@ Return ONLY a valid JSON array of {count} objects. Each object must have these e
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
+        with urllib.request.urlopen(req, timeout=120) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as err:
         body = err.read().decode("utf-8", errors="replace")
@@ -170,14 +170,27 @@ def main() -> None:
     subject = resolve_subject_for_today(now_ist.date())
     focus = SUBJECT_FOCUS[subject]
 
-    print(f"[{now_ist.isoformat()}] Generating 100 analytical questions (4x25) for: {subject}")
-    all_questions = []
-    for batch in range(1, 5):
-        batch_q = fetch_questions_from_gemini(subject, focus, count=25, batch_num=batch)
-        print(f"Batch {batch}/4: generated {len(batch_q)} questions.")
-        all_questions.extend(batch_q)
-    insert_into_supabase(all_questions)
-    print(f"Successfully inserted {len(all_questions)} {subject} questions into Supabase.")
+    total_batches = 10
+    batch_size = 10
+    total_inserted = 0
+
+    print(f"[{now_ist.isoformat()}] Generating 100 analytical questions ({total_batches}x{batch_size}) for: {subject}")
+    for batch in range(1, total_batches + 1):
+        for attempt in (1, 2):
+            try:
+                batch_q = fetch_questions_from_gemini(
+                    subject, focus, count=batch_size, batch_num=batch, total_batches=total_batches
+                )
+                insert_into_supabase(batch_q)
+                total_inserted += len(batch_q)
+                print(f"Batch {batch}/{total_batches}: inserted {len(batch_q)} questions (total={total_inserted}).")
+                break
+            except Exception as exc:
+                print(f"Batch {batch} attempt {attempt} failed: {exc}")
+                if attempt == 2:
+                    raise
+                time.sleep(5)
+    print(f"Successfully inserted {total_inserted} {subject} questions into Supabase.")
 
 
 if __name__ == "__main__":
