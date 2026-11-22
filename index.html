@@ -21,6 +21,18 @@
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"></div>
 
+  <!-- Submit Confirmation Modal -->
+  <div id="submit-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl border border-slate-200 max-w-sm w-full p-5 shadow-xl space-y-4">
+      <h3 class="text-base font-bold text-slate-900">Submit Test?</h3>
+      <p id="submit-modal-msg" class="text-sm text-slate-600"></p>
+      <div class="flex justify-end gap-2.5">
+        <button id="cancel-submit-btn" class="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50">Keep Reviewing</button>
+        <button id="confirm-submit-btn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Yes, Submit</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Top Navigation -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -62,7 +74,7 @@
           <div id="today-rotation-badge" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold"></div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
             <label for="quiz-subject" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Subject</label>
             <select id="quiz-subject" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -72,10 +84,11 @@
           <div>
             <label for="quiz-count" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Questions</label>
             <select id="quiz-count" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="5">5 Questions (Quick Drill)</option>
-              <option value="10" selected>10 Questions</option>
-              <option value="20">20 Questions (Dynasty / Topic)</option>
-              <option value="30">30 Questions (8:45 PM Mock)</option>
+              <option value="10">10 Questions (Quick Drill)</option>
+              <option value="20">20 Questions</option>
+              <option value="30">30 Questions</option>
+              <option value="50">50 Questions</option>
+              <option value="100" selected>100 Questions (Full Subject)</option>
               <option value="ALL">All Available</option>
             </select>
           </div>
@@ -88,12 +101,20 @@
           </div>
         </div>
 
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5 bg-slate-50 px-3.5 py-2.5 rounded-lg border border-slate-200">
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input id="include-attempted-chk" type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+            <span>Include previously attempted questions</span>
+          </label>
+          <span id="unattempted-count-label" class="text-xs font-semibold text-indigo-700">0 unattempted available</span>
+        </div>
+
         <div class="flex flex-wrap gap-3">
           <button id="start-quiz-btn" class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition flex items-center gap-2">
             <span>Start Session</span>
           </button>
           <button id="start-error-drill-btn" class="px-4 py-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-sm font-semibold transition">
-            Re-Test Unmastered Errors
+            Re-Test Wrong / Skipped Errors
           </button>
         </div>
       </div>
@@ -101,26 +122,27 @@
       <!-- Active Quiz Runner -->
       <div id="quiz-runner" class="hidden space-y-4">
         <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-2.5">
             <span id="q-progress" class="text-sm font-bold text-slate-900">Question 1 of 10</span>
             <span id="q-subject-tag" class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium"></span>
             <span id="q-diff-tag" class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium"></span>
           </div>
           <div class="flex items-center gap-3">
             <span id="quiz-timer" class="font-mono text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">00:00</span>
+            <button id="submit-quiz-btn" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">Submit Test</button>
             <button id="quit-quiz-btn" class="text-xs font-semibold text-slate-500 hover:text-rose-600 px-2 py-1">Exit</button>
           </div>
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
           <p id="q-topic" class="text-xs font-semibold uppercase tracking-wider text-indigo-600"></p>
-          <h3 id="q-text" class="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed"></h3>
+          <h3 id="q-text" class="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed whitespace-pre-line"></h3>
 
           <div id="q-options" class="space-y-2.5"></div>
 
           <div id="q-explanation-box" class="hidden rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700 space-y-1">
             <p class="font-semibold text-slate-900">Explanation</p>
-            <p id="q-explanation-text"></p>
+            <p id="q-explanation-text" class="whitespace-pre-line"></p>
             <p id="q-source-text" class="text-xs text-slate-500 pt-1"></p>
           </div>
 
@@ -130,8 +152,7 @@
               <button id="clear-q-btn" class="px-3.5 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50">Clear</button>
             </div>
             <div class="flex items-center gap-2">
-              <button id="next-q-btn" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">Next</button>
-              <button id="submit-quiz-btn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Submit Test</button>
+              <button id="next-q-btn" class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">Next</button>
             </div>
           </div>
         </div>
@@ -214,6 +235,23 @@
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <p class="text-xs font-semibold text-slate-500 uppercase">Open Errors</p>
           <p id="stat-open-err" class="text-2xl font-bold text-rose-600 mt-1">0</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h3 class="text-base font-bold text-slate-900 mb-3">Weakest Subjects &amp; Topics (Error Breakdown)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th class="py-2.5 px-3">Subject</th>
+                <th class="py-2.5 px-3">Top Error Topic</th>
+                <th class="py-2.5 px-3 text-right">Open Errors</th>
+                <th class="py-2.5 px-3 text-right">Unattempted</th>
+              </tr>
+            </thead>
+            <tbody id="weakness-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
         </div>
       </div>
 
@@ -320,14 +358,15 @@
         <hr class="border-slate-200 my-4" />
 
         <div class="space-y-2">
-          <h3 class="text-sm font-bold text-slate-900">Local JSON Backup</h3>
-          <p class="text-xs text-slate-500">Export your questions, test scores, and error logs as a single JSON file, or restore from a backup.</p>
+          <h3 class="text-sm font-bold text-slate-900">Local Backup &amp; Attempt History</h3>
+          <p class="text-xs text-slate-500">Export your questions, test scores, and error logs as a single JSON file, or reset attempted tracking.</p>
           <div class="flex flex-wrap gap-2.5">
             <button id="export-json-btn" class="px-3.5 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium">Export Backup (.json)</button>
             <label class="px-3.5 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm font-medium cursor-pointer">
               Restore Backup
               <input id="import-json-input" type="file" accept=".json" class="hidden" />
             </label>
+            <button id="reset-attempted-btn" class="px-3.5 py-2 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-50 text-sm font-medium">Reset Attempted History</button>
           </div>
         </div>
       </div>
@@ -337,21 +376,35 @@
 
   <script>
     // =========================================================================
-    // Seed Data (Offline-first APPSC Group 2 sample questions)
+    // Core APPSC Group 2 Subjects & Seed Data
     // =========================================================================
+    const CORE_SUBJECTS = [
+      'Ancient Indian History',
+      'Modern Indian History',
+      'Indian Geography',
+      'AP Geography',
+      'Indian Society',
+      'AP History',
+      'Indian Economy',
+      'AP Economy',
+      'Polity',
+      'Science and Technology',
+      'Environment and Ecology'
+    ];
+
     const SEED_QUESTIONS = [
       {
         id: 'seed-1',
         subject: 'AP History',
         topic: 'Eastern Chalukyas of Vengi',
         difficulty: 'Moderate',
-        question_text: 'Which Eastern Chalukya ruler of Vengi shifted the capital from Pistapura to Vengi and was known as Vishamasiddhi?',
-        option_a: 'Kubja Vishnuvardhana',
-        option_b: 'Jayasimha I',
-        option_c: 'Vijayaditya II',
-        option_d: 'Gunaga Vijayaditya',
+        question_text: 'Consider the following statements regarding the Eastern Chalukyas of Vengi:\n1. Kubja Vishnuvardhana was the brother of Pulakesin II.\n2. He shifted the capital from Pistapura to Vengi and bore the title Vishamasiddhi.\n3. Nannaya Bhattaraka began translating the Mahabharata under Gunaga Vijayaditya.\n\nWhich of the statements given above are correct?',
+        option_a: '1 and 2 only',
+        option_b: '2 and 3 only',
+        option_c: '1 and 3 only',
+        option_d: '1, 2 and 3',
         correct_option: 'A',
-        explanation: 'Kubja Vishnuvardhana (624-641 CE), brother of Pulakesin II, founded the Eastern Chalukya dynasty of Vengi and bore the title Vishamasiddhi.',
+        explanation: 'Statements 1 and 2 are correct. Statement 3 is incorrect because Nannaya translated the Mahabharata under Rajaraja Narendra (11th century CE), not Gunaga Vijayaditya.',
         source: 'Telugu Akademi'
       },
       {
@@ -359,60 +412,32 @@
         subject: 'Modern Indian History',
         topic: 'Socio-Religious Reform Movements',
         difficulty: 'Moderate',
-        question_text: 'Who founded the Rajahmundry Social Reform Association in 1878 to promote widow remarriage and women education in Andhra?',
-        option_a: 'Gurajada Apparao',
-        option_b: 'Kandukuri Veeresalingam Pantulu',
-        option_c: 'Raghupati Venkataratnam Naidu',
-        option_d: 'Gidugu Venkata Ramamurthy',
-        correct_option: 'B',
-        explanation: 'Kandukuri Veeresalingam Pantulu established the Rajahmundry Social Reform Association in 1878 and conducted the first widow remarriage in Andhra in 1881.',
+        question_text: 'Consider the following pairs:\n1. Rajahmundry Social Reform Association — Kandukuri Veeresalingam\n2. Satya Mahima Samaj — Raghupati Venkataratnam Naidu\n3. Vyavahara Dharma Bodhini — Gidugu Venkata Ramamurthy\n\nHow many of the above pairs are correctly matched?',
+        option_a: 'Only one pair',
+        option_b: 'Only two pairs',
+        option_c: 'All three pairs',
+        option_d: 'None of the pairs',
+        correct_option: 'A',
+        explanation: 'Only pair 1 is correct. Kandukuri Veeresalingam founded the Rajahmundry Social Reform Association (1878) and also wrote Vyavahara Dharma Bodhini.',
         source: 'Bipan Chandra / AP History'
       },
       {
         id: 'seed-3',
-        subject: 'Geography',
-        topic: 'Indian & AP River Systems',
-        difficulty: 'Easy',
-        question_text: 'Which of the following rivers is NOT a right-bank tributary of the Godavari River?',
-        option_a: 'Manjira',
-        option_b: 'Pravara',
-        option_c: 'Pranahita',
-        option_d: 'Manair',
-        correct_option: 'C',
-        explanation: 'Pranahita (Wardha + Wainganga + Penganga) is a major left-bank tributary of the Godavari; Manjira, Pravara, and Manair are right-bank tributaries.',
-        source: 'NCERT Class XI Geography'
-      },
-      {
-        id: 'seed-4',
-        subject: 'Indian Society',
-        topic: 'Constitutional & Social Structure',
+        subject: 'Indian Geography',
+        topic: 'Peninsular River Systems',
         difficulty: 'Moderate',
-        question_text: 'Which Constitutional Amendment inserted Article 338B to grant constitutional status to the National Commission for Backward Classes (NCBC)?',
-        option_a: '100th Amendment Act',
-        option_b: '101st Amendment Act',
-        option_c: '102nd Amendment Act',
-        option_d: '103rd Amendment Act',
-        correct_option: 'C',
-        explanation: 'The 102nd Constitutional Amendment Act, 2018 inserted Articles 338B and 342A, granting constitutional status to the NCBC.',
-        source: 'Indian Polity'
-      },
-      {
-        id: 'seed-5',
-        subject: 'Ancient History',
-        topic: 'Satavahanas & Ikshvakus',
-        difficulty: 'Hard',
-        question_text: 'The Nagarjunakonda inscriptions of the Ikshvaku dynasty are predominantly written in which language and script?',
-        option_a: 'Sanskrit in Devanagari script',
-        option_b: 'Prakrit in Brahmi script',
-        option_c: 'Pali in Kharosthi script',
-        option_d: 'Telugu in Vengi-Chalukya script',
-        correct_option: 'B',
-        explanation: 'Early Ikshvaku inscriptions at Nagarjunakonda are primarily in Prakrit language and Brahmi script.',
-        source: 'Telugu Akademi'
+        question_text: 'With reference to the Godavari River basin, consider the following tributaries:\n1. Manjira\n2. Pranahita\n3. Sabari\n4. Pravara\n\nWhich of the above are right-bank tributaries of the Godavari?',
+        option_a: '1 and 4 only',
+        option_b: '2 and 3 only',
+        option_c: '1, 2 and 4 only',
+        option_d: '1, 3 and 4 only',
+        correct_option: 'A',
+        explanation: 'Manjira and Pravara join the Godavari from the right bank; Pranahita and Sabari are major left-bank tributaries.',
+        source: 'NCERT Class XI Geography'
       }
     ];
 
-    const STORAGE_KEY = 'appsc_g2_prep_state_v1';
+    const STORAGE_KEY = 'appsc_g2_prep_state_v2';
 
     // =========================================================================
     // State Management
@@ -421,6 +446,7 @@
       questions: [...SEED_QUESTIONS],
       attempts: [],
       errorLogs: [],
+      attemptedIds: [],
       supabase: { url: '', key: '' }
     };
 
@@ -431,29 +457,27 @@
       mode: 'exam',
       subject: 'ALL',
       seconds: 0,
-      timerId: null
+      timerId: null,
+      isErrorDrill: false
     };
 
     function saveLocal() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (e) {
-        // Fallback when storage is restricted
-      }
+      } catch (e) {}
     }
 
     function loadLocal() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('appsc_g2_prep_state_v1');
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
             state = { ...state, ...parsed };
+            if (!Array.isArray(state.attemptedIds)) state.attemptedIds = [];
           }
         }
-      } catch (e) {
-        // Ignore storage errors
-      }
+      } catch (e) {}
     }
 
     function showToast(message, type = 'info') {
@@ -476,6 +500,14 @@
     function uuid() {
       if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
       return 'id-' + Math.random().toString(36).slice(2, 11) + '-' + Date.now();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     // =========================================================================
@@ -509,13 +541,17 @@
     async function pullFromSupabase() {
       try {
         const [questions, attempts, errorLogs] = await Promise.all([
-          sbFetch('questions?select=*&order=created_at.desc'),
-          sbFetch('test_attempts?select=*&order=created_at.desc&limit=50'),
-          sbFetch('error_logs?select=*&order=created_at.desc')
+          sbFetch('questions?select=*&order=created_at.desc&limit=2000'),
+          sbFetch('test_attempts?select=*&order=created_at.desc&limit=100'),
+          sbFetch('error_logs?select=*&order=created_at.desc&limit=1000')
         ]);
         if (Array.isArray(questions) && questions.length > 0) state.questions = questions;
         if (Array.isArray(attempts)) state.attempts = attempts;
-        if (Array.isArray(errorLogs)) state.errorLogs = errorLogs;
+        if (Array.isArray(errorLogs)) {
+          state.errorLogs = errorLogs;
+          const errIds = errorLogs.map(e => e.question_id).filter(Boolean);
+          state.attemptedIds = [...new Set([...state.attemptedIds, ...errIds])];
+        }
         saveLocal();
         updateSyncIndicator(true);
         refreshAllUI();
@@ -560,49 +596,50 @@
     }
 
     function renderWeekdayRotationBadge() {
-      const days = [
-        'Sunday: Weekend Error-Log Review',
-        'Monday: Geography Mock',
-        'Tuesday: Modern Indian History Mock',
-        'Wednesday: Current Affairs Mock',
-        'Thursday: Indian Society Mock',
-        'Friday: Ancient History Mock',
-        'Saturday: Weekend Re-Solve & Error Log'
-      ];
       const badge = document.getElementById('today-rotation-badge');
-      badge.textContent = days[new Date().getDay()];
+      badge.textContent = 'Daily 8:00 PM IST Auto-Sync Active';
     }
 
     // =========================================================================
-    // Quiz Engine
+    // Quiz Engine (Unattempted Filtering & Safe Submit)
     // =========================================================================
     function populateSubjectDropdowns() {
-      const subjects = [...new Set(state.questions.map(q => q.subject))].sort();
+      const dbSubjects = state.questions.map(q => q.subject);
+      const allSubjects = [...new Set([...CORE_SUBJECTS, ...dbSubjects])].sort();
       const quizSel = document.getElementById('quiz-subject');
       const errSel = document.getElementById('err-filter-subject');
       const prevQuizVal = quizSel.value;
       const prevErrVal = errSel.value;
 
       quizSel.innerHTML = '<option value="ALL">All Subjects (Mixed)</option>' +
-        subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        allSubjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
       errSel.innerHTML = '<option value="ALL">All Subjects</option>' +
-        subjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+        allSubjects.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
 
-      if (subjects.includes(prevQuizVal)) quizSel.value = prevQuizVal;
-      if (subjects.includes(prevErrVal)) errSel.value = prevErrVal;
+      if (allSubjects.includes(prevQuizVal)) quizSel.value = prevQuizVal;
+      if (allSubjects.includes(prevErrVal)) errSel.value = prevErrVal;
+      updateUnattemptedLabel();
     }
 
-    function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    function getFilteredPool(subject, includeAttempted) {
+      const attemptedSet = new Set(state.attemptedIds);
+      return state.questions.filter(q => {
+        if (subject !== 'ALL' && q.subject !== subject) return false;
+        if (!includeAttempted && attemptedSet.has(q.id)) return false;
+        return true;
+      });
     }
 
-    function startQuiz(questionPool, subjectLabel) {
+    function updateUnattemptedLabel() {
+      const sub = document.getElementById('quiz-subject').value;
+      const includeAtt = document.getElementById('include-attempted-chk').checked;
+      const pool = getFilteredPool(sub, includeAtt);
+      document.getElementById('unattempted-count-label').textContent = `${pool.length} ${includeAtt ? 'total' : 'unattempted'} available`;
+    }
+
+    function startQuiz(questionPool, subjectLabel, isErrorDrill = false) {
       if (!questionPool.length) {
-        showToast('No questions available for this selection.', 'error');
+        showToast('No unattempted questions left for this selection! Check "Include previously attempted" or Pull from Cloud.', 'error');
         return;
       }
       if (activeQuiz.timerId) clearInterval(activeQuiz.timerId);
@@ -618,7 +655,8 @@
         mode: document.getElementById('quiz-mode').value,
         subject: subjectLabel,
         seconds: 0,
-        timerId: null
+        timerId: null,
+        isErrorDrill
       };
 
       document.getElementById('quiz-setup').classList.add('hidden');
@@ -672,7 +710,7 @@
         }
 
         btn.className = `w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition flex items-start gap-3 ${style}`;
-        btn.innerHTML = `<span class="font-bold shrink-0">${opt.key}.</span><span>${escapeHtml(opt.text)}</span>`;
+        btn.innerHTML = `<span class="font-bold shrink-0">${opt.key}.</span><span class="whitespace-pre-line">${escapeHtml(opt.text)}</span>`;
         btn.addEventListener('click', () => {
           activeQuiz.answers[q.id] = opt.key;
           renderQuestion();
@@ -694,7 +732,16 @@
       document.getElementById('next-q-btn').classList.toggle('hidden', activeQuiz.index === total - 1);
     }
 
+    function openSubmitModal() {
+      const answeredCount = Object.keys(activeQuiz.answers).length;
+      const total = activeQuiz.questions.length;
+      document.getElementById('submit-modal-msg').textContent =
+        `You have answered ${answeredCount} of ${total} questions (${total - answeredCount} skipped). Ready to submit?`;
+      document.getElementById('submit-modal').classList.remove('hidden');
+    }
+
     async function submitQuiz() {
+      document.getElementById('submit-modal').classList.add('hidden');
       if (activeQuiz.timerId) {
         clearInterval(activeQuiz.timerId);
         activeQuiz.timerId = null;
@@ -706,6 +753,9 @@
       const newErrors = [];
 
       activeQuiz.questions.forEach(q => {
+        if (!state.attemptedIds.includes(q.id)) {
+          state.attemptedIds.push(q.id);
+        }
         const ans = activeQuiz.answers[q.id];
         if (!ans) {
           skipped++;
@@ -760,7 +810,6 @@
       });
       saveLocal();
 
-      // Sync to Supabase if connected
       if (isCloudConfigured()) {
         try {
           await sbFetch('test_attempts', {
@@ -777,8 +826,9 @@
             })
           });
           if (newErrors.length > 0) {
+            const existingOpenIds = new Set(state.errorLogs.filter(e => !e.mastered && /^[0-9a-f-]{36}$/i.test(e.id)).map(e => e.question_id));
             const validCloudErrors = newErrors
-              .filter(e => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.question_id))
+              .filter(e => /^[0-9a-f-]{36}$/i.test(e.question_id) && !existingOpenIds.has(e.question_id))
               .map(e => ({
                 question_id: e.question_id,
                 selected_option: e.selected_option,
@@ -794,7 +844,6 @@
         }
       }
 
-      // Render result
       document.getElementById('quiz-runner').classList.add('hidden');
       document.getElementById('quiz-result').classList.remove('hidden');
       document.getElementById('result-meta').textContent = `${activeQuiz.subject} • ${activeQuiz.questions.length} Questions • ${Math.floor(activeQuiz.seconds / 60)}m ${activeQuiz.seconds % 60}s`;
@@ -820,9 +869,9 @@
               <span class="text-xs font-semibold text-slate-500">Q${idx + 1} • ${escapeHtml(q.subject)}</span>
               ${badge}
             </div>
-            <p class="text-sm font-semibold text-slate-900">${escapeHtml(q.question_text)}</p>
+            <p class="text-sm font-semibold text-slate-900 whitespace-pre-line">${escapeHtml(q.question_text)}</p>
             <p class="text-xs text-slate-700">Your Answer: <strong>${ans || 'None'}</strong> | Correct: <strong class="text-emerald-700">${q.correct_option}</strong></p>
-            <p class="text-xs text-slate-600">${escapeHtml(q.explanation)}</p>
+            <p class="text-xs text-slate-600 whitespace-pre-line">${escapeHtml(q.explanation)}</p>
           </div>
         `;
       }).join('');
@@ -874,9 +923,9 @@
               </button>
             </div>
           </div>
-          <p class="text-sm font-semibold text-slate-900">${escapeHtml(q.question_text)}</p>
+          <p class="text-sm font-semibold text-slate-900 whitespace-pre-line">${escapeHtml(q.question_text)}</p>
           <p class="text-xs text-slate-700">Your choice: <strong>${log.selected_option || 'Skipped'}</strong> | Correct: <strong class="text-emerald-700">${q.correct_option}</strong></p>
-          <p class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">${escapeHtml(q.explanation)}</p>
+          <p class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg whitespace-pre-line">${escapeHtml(q.explanation)}</p>
         `;
 
         card.querySelector('.err-type-sel').addEventListener('change', async (e) => {
@@ -925,6 +974,39 @@
       const avgAcc = totalAtt > 0 ? Math.round((totalCorr / totalAtt) * 100) : 0;
       document.getElementById('stat-avg-acc').textContent = `${avgAcc}%`;
 
+      // Subject & Topic Weakness Breakdown
+      const attemptedSet = new Set(state.attemptedIds);
+      const subStats = {};
+      state.questions.forEach(q => {
+        if (!subStats[q.subject]) subStats[q.subject] = { openErrors: 0, unattempted: 0, topicErrors: {} };
+        if (!attemptedSet.has(q.id)) subStats[q.subject].unattempted++;
+      });
+      state.errorLogs.filter(e => !e.mastered).forEach(log => {
+        const q = state.questions.find(item => item.id === log.question_id);
+        if (!q) return;
+        if (!subStats[q.subject]) subStats[q.subject] = { openErrors: 0, unattempted: 0, topicErrors: {} };
+        subStats[q.subject].openErrors++;
+        subStats[q.subject].topicErrors[q.topic] = (subStats[q.subject].topicErrors[q.topic] || 0) + 1;
+      });
+
+      const weakRows = Object.entries(subStats)
+        .sort((a, b) => b[1].openErrors - a[1].openErrors);
+      const weakBody = document.getElementById('weakness-table-body');
+      weakBody.innerHTML = weakRows.length === 0
+        ? '<tr><td colspan="4" class="py-4 text-center text-slate-400">No data yet.</td></tr>'
+        : weakRows.map(([sub, data]) => {
+            const topTopicEntry = Object.entries(data.topicErrors).sort((a, b) => b[1] - a[1])[0];
+            const topTopic = topTopicEntry ? `${topTopicEntry[0]} (${topTopicEntry[1]})` : '—';
+            return `
+              <tr>
+                <td class="py-2.5 px-3 font-medium text-slate-900">${escapeHtml(sub)}</td>
+                <td class="py-2.5 px-3 text-slate-600">${escapeHtml(topTopic)}</td>
+                <td class="py-2.5 px-3 text-right font-semibold ${data.openErrors > 0 ? 'text-rose-700' : 'text-slate-500'}">${data.openErrors}</td>
+                <td class="py-2.5 px-3 text-right text-indigo-700 font-medium">${data.unattempted}</td>
+              </tr>
+            `;
+          }).join('');
+
       const tbody = document.getElementById('attempts-table-body');
       if (state.attempts.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">No tests submitted yet.</td></tr>';
@@ -957,7 +1039,7 @@
         <div class="py-3 flex items-start justify-between gap-3">
           <div>
             <p class="text-xs font-semibold text-indigo-600">${escapeHtml(q.subject)} • ${escapeHtml(q.topic)} (${escapeHtml(q.difficulty || 'Moderate')})</p>
-            <p class="text-sm font-medium text-slate-900 mt-0.5">${escapeHtml(q.question_text)}</p>
+            <p class="text-sm font-medium text-slate-900 mt-0.5 whitespace-pre-line">${escapeHtml(q.question_text)}</p>
             <p class="text-xs text-slate-500 mt-0.5">Ans: ${escapeHtml(q.correct_option)} • ${escapeHtml(q.source || 'Self-Compiled')}</p>
           </div>
         </div>
@@ -1024,20 +1106,24 @@
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
       });
 
+      document.getElementById('quiz-subject').addEventListener('change', updateUnattemptedLabel);
+      document.getElementById('include-attempted-chk').addEventListener('change', updateUnattemptedLabel);
+
       document.getElementById('start-quiz-btn').addEventListener('click', () => {
         const sub = document.getElementById('quiz-subject').value;
-        const pool = sub === 'ALL' ? state.questions : state.questions.filter(q => q.subject === sub);
-        startQuiz(pool, sub === 'ALL' ? 'Mixed Subjects' : sub);
+        const includeAtt = document.getElementById('include-attempted-chk').checked;
+        const pool = getFilteredPool(sub, includeAtt);
+        startQuiz(pool, sub === 'ALL' ? 'Mixed Subjects' : sub, false);
       });
 
       document.getElementById('start-error-drill-btn').addEventListener('click', () => {
         const openIds = new Set(state.errorLogs.filter(e => !e.mastered).map(e => e.question_id));
         const pool = state.questions.filter(q => openIds.has(q.id));
         if (pool.length === 0) {
-          showToast('No unmastered errors to re-test!', 'info');
+          showToast('No unmastered wrong/skipped questions to re-test!', 'info');
           return;
         }
-        startQuiz(pool, 'Error-Log Re-Test');
+        startQuiz(pool, 'Error-Log Re-Test', true);
       });
 
       document.getElementById('prev-q-btn').addEventListener('click', () => {
@@ -1060,7 +1146,11 @@
         renderQuestion();
       });
 
-      document.getElementById('submit-quiz-btn').addEventListener('click', submitQuiz);
+      document.getElementById('submit-quiz-btn').addEventListener('click', openSubmitModal);
+      document.getElementById('cancel-submit-btn').addEventListener('click', () => {
+        document.getElementById('submit-modal').classList.add('hidden');
+      });
+      document.getElementById('confirm-submit-btn').addEventListener('click', submitQuiz);
 
       document.getElementById('quit-quiz-btn').addEventListener('click', () => {
         if (activeQuiz.timerId) clearInterval(activeQuiz.timerId);
@@ -1234,6 +1324,13 @@
           showToast('Could not parse JSON backup.', 'error');
         }
         e.target.value = '';
+      });
+
+      document.getElementById('reset-attempted-btn').addEventListener('click', () => {
+        state.attemptedIds = [];
+        saveLocal();
+        refreshAllUI();
+        showToast('Attempted history cleared—all questions are available again.', 'info');
       });
 
       refreshAllUI();
