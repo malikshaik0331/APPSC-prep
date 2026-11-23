@@ -33,6 +33,31 @@
     </div>
   </div>
 
+  <!-- Attempt Analysis Modal -->
+  <div id="attempt-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-white rounded-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 id="attempt-modal-title" class="text-lg font-bold text-slate-900">Test Analysis</h3>
+          <p id="attempt-modal-meta" class="text-xs text-slate-500 mt-0.5"></p>
+        </div>
+        <button id="close-attempt-modal-btn" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">Close</button>
+      </div>
+
+      <div class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50 space-y-3">
+        <div id="attempt-modal-kpis" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5"></div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button data-filter="ALL" class="attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white">All</button>
+          <button data-filter="CORRECT" class="attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700">Correct</button>
+          <button data-filter="WRONG" class="attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700">Wrong</button>
+          <button data-filter="SKIPPED" class="attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700">Not Attempted</button>
+        </div>
+      </div>
+
+      <div id="attempt-modal-list" class="p-4 sm:p-5 overflow-y-auto space-y-3 flex-1"></div>
+    </div>
+  </div>
+
   <!-- Top Navigation -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
     <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -122,12 +147,15 @@
       <!-- Active Quiz Runner -->
       <div id="quiz-runner" class="hidden space-y-4">
         <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-          <div class="flex flex-wrap items-center gap-2.5">
+          <div class="flex flex-wrap items-center gap-2">
             <span id="q-progress" class="text-sm font-bold text-slate-900">Question 1 of 10</span>
             <span id="q-subject-tag" class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium"></span>
             <span id="q-diff-tag" class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium"></span>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span id="live-attempted" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">Attempted: 0</span>
+            <span id="live-unanswered" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold">Skipped/Left: 0</span>
+            <span id="live-review" class="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold">Review: 0</span>
             <span id="quiz-timer" class="font-mono text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">00:00</span>
             <button id="submit-quiz-btn" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition">Submit Test</button>
             <button id="quit-quiz-btn" class="text-xs font-semibold text-slate-500 hover:text-rose-600 px-2 py-1">Exit</button>
@@ -135,8 +163,13 @@
         </div>
 
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
-          <p id="q-topic" class="text-xs font-semibold uppercase tracking-wider text-indigo-600"></p>
-          <h3 id="q-text" class="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed whitespace-pre-line"></h3>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p id="q-topic" class="text-xs font-semibold uppercase tracking-wider text-indigo-600"></p>
+            <button id="toggle-review-btn" type="button" class="px-3 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition">
+              Mark for Review
+            </button>
+          </div>
+          <div id="q-text" class="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed space-y-2"></div>
 
           <div id="q-options" class="space-y-2.5"></div>
 
@@ -152,9 +185,22 @@
               <button id="clear-q-btn" class="px-3.5 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-500 hover:bg-slate-50">Clear</button>
             </div>
             <div class="flex items-center gap-2">
+              <button id="toggle-palette-btn" type="button" class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">Question Palette</button>
               <button id="next-q-btn" class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">Next</button>
             </div>
           </div>
+        </div>
+
+        <div id="question-palette-box" class="hidden bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+            <span class="font-semibold text-slate-900">Jump to Question</span>
+            <div class="flex items-center gap-3">
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-emerald-500 inline-block"></span> Answered</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Marked Review</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> Unanswered</span>
+            </div>
+          </div>
+          <div id="question-palette-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-2"></div>
         </div>
       </div>
 
@@ -239,12 +285,13 @@
       </div>
 
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-        <h3 class="text-base font-bold text-slate-900 mb-3">Weakest Subjects &amp; Topics (Error Breakdown)</h3>
+        <h3 class="text-base font-bold text-slate-900 mb-3">Subject-Wise Accuracy &amp; Weakest Topics</h3>
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
               <tr>
                 <th class="py-2.5 px-3">Subject</th>
+                <th class="py-2.5 px-3 text-right">Subject Accuracy</th>
                 <th class="py-2.5 px-3">Top Error Topic</th>
                 <th class="py-2.5 px-3 text-right">Open Errors</th>
                 <th class="py-2.5 px-3 text-right">Unattempted</th>
@@ -256,7 +303,10 @@
       </div>
 
       <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-        <h3 class="text-base font-bold text-slate-900 mb-3">Recent Test Attempts</h3>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 class="text-base font-bold text-slate-900">Recent Test Attempts</h3>
+          <span class="text-xs text-slate-500">Tap any row to open full question-by-question analysis</span>
+        </div>
         <div class="overflow-x-auto">
           <table class="w-full text-sm text-left">
             <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
@@ -266,6 +316,7 @@
                 <th class="py-2.5 px-3 text-right">Attempted</th>
                 <th class="py-2.5 px-3 text-right">Correct</th>
                 <th class="py-2.5 px-3 text-right">Wrong</th>
+                <th class="py-2.5 px-3 text-right">Accuracy</th>
                 <th class="py-2.5 px-3 text-right">Net Score</th>
               </tr>
             </thead>
@@ -278,14 +329,12 @@
     <!-- TAB 4: QUESTION BANK & CSV IMPORT -->
     <section id="tab-bank" class="tab-panel hidden space-y-5">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- CSV Import -->
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
           <h3 class="text-base font-bold text-slate-900">Bulk Import from CSV</h3>
           <p class="text-sm text-slate-500">Upload a CSV matching <code class="px-1.5 py-0.5 bg-slate-100 rounded text-xs">appsc_questions_template.csv</code>. If Cloud Sync is enabled, imported questions are pushed to Supabase automatically.</p>
           <input id="csv-file-input" type="file" accept=".csv" class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
         </div>
 
-        <!-- Add Single Question -->
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
           <h3 class="text-base font-bold text-slate-900">Quick Add Question</h3>
           <form id="add-q-form" class="space-y-2.5">
@@ -375,9 +424,6 @@
   </main>
 
   <script>
-    // =========================================================================
-    // Core APPSC Group 2 Subjects & Seed Data
-    // =========================================================================
     const CORE_SUBJECTS = [
       'Ancient Indian History',
       'Modern Indian History',
@@ -439,20 +485,19 @@
 
     const STORAGE_KEY = 'appsc_g2_prep_state_v2';
 
-    // =========================================================================
-    // State Management
-    // =========================================================================
     let state = {
       questions: [...SEED_QUESTIONS],
       attempts: [],
       errorLogs: [],
       attemptedIds: [],
+      attemptReviews: {},
       supabase: { url: '', key: '' }
     };
 
     let activeQuiz = {
       questions: [],
       answers: {},
+      markedForReview: new Set(),
       index: 0,
       mode: 'exam',
       subject: 'ALL',
@@ -460,6 +505,8 @@
       timerId: null,
       isErrorDrill: false
     };
+
+    let activeAttemptModal = { attempt: null, filter: 'ALL' };
 
     function saveLocal() {
       try {
@@ -475,6 +522,7 @@
           if (parsed && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
             state = { ...state, ...parsed };
             if (!Array.isArray(state.attemptedIds)) state.attemptedIds = [];
+            if (!state.attemptReviews || typeof state.attemptReviews !== 'object') state.attemptReviews = {};
           }
         }
       } catch (e) {}
@@ -510,9 +558,53 @@
         .replace(/"/g, '&quot;');
     }
 
-    // =========================================================================
-    // Supabase REST Helpers
-    // =========================================================================
+    function formatQuestionHtml(rawText) {
+      let text = String(rawText || '').replace(/\r\n/g, '\n');
+      text = text.replace(/\s+(\d{1,2})\.\s+(?=[A-Z"'])/g, '\n$1. ');
+      text = text.replace(/\s+(Which of the statements?|Select the correct|How many of the)/gi, '\n\n$1');
+
+      const matchSplit = text.match(/^(.*?Match List-I.*?List-II.*?:\s*)(List-I\s*List-II[\s\S]*?)(\n*\s*Select the correct[\s\S]*)$/i);
+      if (matchSplit) {
+        const intro = matchSplit[1].replace(/\s+/g, ' ').trim();
+        const body = matchSplit[2].replace(/^List-I\s*List-II\s*/i, '').replace(/\s+/g, ' ').trim();
+        const footer = matchSplit[3].replace(/\s+/g, ' ').trim();
+
+        const pairs = [...body.matchAll(/([a-d]\.\s*.*?)\s+(\d\.\s*.*?)(?=\s+[a-d]\.\s+|$)/gi)];
+        if (pairs.length >= 2) {
+          const rowsHtml = pairs.map(p => `
+            <tr class="border-t border-slate-200">
+              <td class="py-2 px-3 font-medium text-slate-900 align-top">${escapeHtml(p[1].trim())}</td>
+              <td class="py-2 px-3 text-slate-700 align-top">${escapeHtml(p[2].trim())}</td>
+            </tr>
+          `).join('');
+
+          return `
+            <p>${escapeHtml(intro)}</p>
+            <div class="overflow-x-auto rounded-lg border border-slate-200 my-2">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-100 text-xs font-bold text-slate-700 uppercase">
+                  <tr>
+                    <th class="py-2 px-3">List-I</th>
+                    <th class="py-2 px-3">List-II</th>
+                  </tr>
+                </thead>
+                <tbody>${rowsHtml}</tbody>
+              </table>
+            </div>
+            <p class="italic text-slate-700 text-sm">${escapeHtml(footer)}</p>
+          `;
+        }
+      }
+
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      return lines.map(line => {
+        if (/^(Which of the|Select the|How many of the)/i.test(line)) {
+          return `<p class="italic text-slate-700 pt-1">${escapeHtml(line)}</p>`;
+        }
+        return `<p>${escapeHtml(line)}</p>`;
+      }).join('');
+    }
+
     function isCloudConfigured() {
       return Boolean(state.supabase && state.supabase.url && state.supabase.key);
     }
@@ -577,9 +669,6 @@
       }
     }
 
-    // =========================================================================
-    // Navigation & Rotation Helper
-    // =========================================================================
     function switchTab(tabName) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
       document.getElementById(`tab-${tabName}`).classList.remove('hidden');
@@ -600,9 +689,6 @@
       badge.textContent = 'Daily 5:30 AM IST Auto-Sync Active';
     }
 
-    // =========================================================================
-    // Quiz Engine (Unattempted Filtering & Safe Submit)
-    // =========================================================================
     function populateSubjectDropdowns() {
       const dbSubjects = state.questions.map(q => q.subject);
       const allSubjects = [...new Set([...CORE_SUBJECTS, ...dbSubjects])].sort();
@@ -651,6 +737,7 @@
       activeQuiz = {
         questions: shuffled.slice(0, limit),
         answers: {},
+        markedForReview: new Set(),
         index: 0,
         mode: document.getElementById('quiz-mode').value,
         subject: subjectLabel,
@@ -662,6 +749,7 @@
       document.getElementById('quiz-setup').classList.add('hidden');
       document.getElementById('quiz-result').classList.add('hidden');
       document.getElementById('quiz-runner').classList.remove('hidden');
+      document.getElementById('question-palette-box').classList.add('hidden');
 
       activeQuiz.timerId = setInterval(() => {
         activeQuiz.seconds++;
@@ -673,6 +761,42 @@
       renderQuestion();
     }
 
+    function updateLiveQuizCounters() {
+      const total = activeQuiz.questions.length;
+      const attemptedCount = Object.keys(activeQuiz.answers).length;
+      const unansweredCount = total - attemptedCount;
+      const reviewCount = activeQuiz.markedForReview.size;
+
+      document.getElementById('live-attempted').textContent = `Attempted: ${attemptedCount}`;
+      document.getElementById('live-unanswered').textContent = `Skipped/Left: ${unansweredCount}`;
+      document.getElementById('live-review').textContent = `Review: ${reviewCount}`;
+    }
+
+    function renderPalette() {
+      const grid = document.getElementById('question-palette-grid');
+      grid.innerHTML = '';
+      activeQuiz.questions.forEach((q, idx) => {
+        const isCurrent = idx === activeQuiz.index;
+        const isAnswered = Boolean(activeQuiz.answers[q.id]);
+        const isMarked = activeQuiz.markedForReview.has(q.id);
+
+        let cls = 'bg-slate-100 text-slate-700 border-slate-200';
+        if (isMarked) cls = 'bg-amber-400 text-slate-900 border-amber-500';
+        else if (isAnswered) cls = 'bg-emerald-500 text-white border-emerald-600';
+
+        const ring = isCurrent ? 'ring-2 ring-indigo-600 ring-offset-1' : '';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `py-1.5 rounded-lg border text-xs font-bold transition ${cls} ${ring}`;
+        btn.textContent = idx + 1;
+        btn.addEventListener('click', () => {
+          activeQuiz.index = idx;
+          renderQuestion();
+        });
+        grid.appendChild(btn);
+      });
+    }
+
     function renderQuestion() {
       const q = activeQuiz.questions[activeQuiz.index];
       const total = activeQuiz.questions.length;
@@ -680,7 +804,14 @@
       document.getElementById('q-subject-tag').textContent = q.subject;
       document.getElementById('q-diff-tag').textContent = q.difficulty || 'Moderate';
       document.getElementById('q-topic').textContent = q.topic;
-      document.getElementById('q-text').textContent = q.question_text;
+      document.getElementById('q-text').innerHTML = formatQuestionHtml(q.question_text);
+
+      const isMarked = activeQuiz.markedForReview.has(q.id);
+      const revBtn = document.getElementById('toggle-review-btn');
+      revBtn.textContent = isMarked ? 'Marked for Review' : 'Mark for Review';
+      revBtn.className = isMarked
+        ? 'px-3 py-1 rounded-lg border border-amber-500 bg-amber-400 text-slate-900 text-xs font-bold transition'
+        : 'px-3 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition';
 
       const selected = activeQuiz.answers[q.id] || null;
       const options = [
@@ -730,13 +861,17 @@
       document.getElementById('prev-q-btn').disabled = activeQuiz.index === 0;
       document.getElementById('prev-q-btn').classList.toggle('opacity-40', activeQuiz.index === 0);
       document.getElementById('next-q-btn').classList.toggle('hidden', activeQuiz.index === total - 1);
+
+      updateLiveQuizCounters();
+      renderPalette();
     }
 
     function openSubmitModal() {
       const answeredCount = Object.keys(activeQuiz.answers).length;
       const total = activeQuiz.questions.length;
+      const reviewCount = activeQuiz.markedForReview.size;
       document.getElementById('submit-modal-msg').textContent =
-        `You have answered ${answeredCount} of ${total} questions (${total - answeredCount} skipped). Ready to submit?`;
+        `Attempted: ${answeredCount} of ${total} | Skipped: ${total - answeredCount} | Marked for Review: ${reviewCount}. Ready to submit?`;
       document.getElementById('submit-modal').classList.remove('hidden');
     }
 
@@ -751,12 +886,14 @@
       let wrong = 0;
       let skipped = 0;
       const newErrors = [];
+      const reviewItems = [];
 
       activeQuiz.questions.forEach(q => {
         if (!state.attemptedIds.includes(q.id)) {
           state.attemptedIds.push(q.id);
         }
-        const ans = activeQuiz.answers[q.id];
+        const ans = activeQuiz.answers[q.id] || null;
+        let status = 'SKIPPED';
         if (!ans) {
           skipped++;
           newErrors.push({
@@ -771,8 +908,10 @@
           });
         } else if (ans === q.correct_option) {
           correct++;
+          status = 'CORRECT';
         } else {
           wrong++;
+          status = 'WRONG';
           newErrors.push({
             id: uuid(),
             question_id: q.id,
@@ -784,14 +923,16 @@
             created_at: new Date().toISOString()
           });
         }
+        reviewItems.push({ question_id: q.id, selected_option: ans, status });
       });
 
       const netScore = Number((correct - wrong * 0.33).toFixed(2));
       const attempted = correct + wrong;
       const accuracy = attempted > 0 ? Math.round((correct / attempted) * 100) : 0;
 
+      const attemptId = uuid();
       const attemptRecord = {
-        id: uuid(),
+        id: attemptId,
         subject: activeQuiz.subject,
         total_questions: activeQuiz.questions.length,
         attempted,
@@ -803,6 +944,7 @@
         created_at: new Date().toISOString()
       };
 
+      state.attemptReviews[attemptId] = reviewItems;
       state.attempts.unshift(attemptRecord);
       newErrors.forEach(err => {
         const existing = state.errorLogs.find(e => e.question_id === err.question_id && !e.mastered);
@@ -812,7 +954,7 @@
 
       if (isCloudConfigured()) {
         try {
-          await sbFetch('test_attempts', {
+          const inserted = await sbFetch('test_attempts', {
             method: 'POST',
             body: JSON.stringify({
               subject: attemptRecord.subject,
@@ -825,6 +967,11 @@
               duration_seconds: attemptRecord.duration_seconds
             })
           });
+          if (inserted && inserted[0] && inserted[0].id) {
+            state.attemptReviews[inserted[0].id] = reviewItems;
+            attemptRecord.id = inserted[0].id;
+            saveLocal();
+          }
           if (newErrors.length > 0) {
             const existingOpenIds = new Set(state.errorLogs.filter(e => !e.mastered && /^[0-9a-f-]{36}$/i.test(e.id)).map(e => e.question_id));
             const validCloudErrors = newErrors
@@ -869,7 +1016,7 @@
               <span class="text-xs font-semibold text-slate-500">Q${idx + 1} • ${escapeHtml(q.subject)}</span>
               ${badge}
             </div>
-            <p class="text-sm font-semibold text-slate-900 whitespace-pre-line">${escapeHtml(q.question_text)}</p>
+            <div class="text-sm font-semibold text-slate-900 space-y-1">${formatQuestionHtml(q.question_text)}</div>
             <p class="text-xs text-slate-700">Your Answer: <strong>${ans || 'None'}</strong> | Correct: <strong class="text-emerald-700">${q.correct_option}</strong></p>
             <p class="text-xs text-slate-600 whitespace-pre-line">${escapeHtml(q.explanation)}</p>
           </div>
@@ -880,8 +1027,79 @@
     }
 
     // =========================================================================
-    // Error Log UI
+    // Attempt Analysis Modal (Click any Recent Test Attempt)
     // =========================================================================
+    function openAttemptAnalysis(attempt) {
+      activeAttemptModal = { attempt, filter: 'ALL' };
+      document.getElementById('attempt-modal-title').textContent = `${attempt.subject} — Test Analysis`;
+      const dur = attempt.duration_seconds ? `${Math.floor(attempt.duration_seconds / 60)}m ${attempt.duration_seconds % 60}s` : '—';
+      document.getElementById('attempt-modal-meta').textContent = `${new Date(attempt.created_at).toLocaleString()} • Duration: ${dur}`;
+
+      const acc = attempt.attempted > 0 ? Math.round((attempt.correct / attempt.attempted) * 100) : 0;
+      document.getElementById('attempt-modal-kpis').innerHTML = `
+        <div class="p-2.5 rounded-lg bg-indigo-50 border border-indigo-100"><p class="text-[11px] text-indigo-600 font-medium">Net Score</p><p class="text-lg font-bold text-indigo-900">${Number(attempt.net_score).toFixed(2)}</p></div>
+        <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-100"><p class="text-[11px] text-emerald-700 font-medium">Correct</p><p class="text-lg font-bold text-emerald-900">${attempt.correct}</p></div>
+        <div class="p-2.5 rounded-lg bg-rose-50 border border-rose-100"><p class="text-[11px] text-rose-700 font-medium">Wrong</p><p class="text-lg font-bold text-rose-900">${attempt.wrong}</p></div>
+        <div class="p-2.5 rounded-lg bg-slate-100 border border-slate-200"><p class="text-[11px] text-slate-600 font-medium">Not Attempted</p><p class="text-lg font-bold text-slate-900">${attempt.skipped}</p></div>
+        <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-100"><p class="text-[11px] text-amber-700 font-medium">Accuracy</p><p class="text-lg font-bold text-amber-900">${acc}%</p></div>
+      `;
+
+      renderAttemptModalList();
+      document.getElementById('attempt-modal').classList.remove('hidden');
+    }
+
+    function renderAttemptModalList() {
+      const { attempt, filter } = activeAttemptModal;
+      document.querySelectorAll('.attempt-filter-btn').forEach(btn => {
+        if (btn.dataset.filter === filter) {
+          btn.className = 'attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white';
+        } else {
+          btn.className = 'attempt-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-300 text-slate-700';
+        }
+      });
+
+      const listEl = document.getElementById('attempt-modal-list');
+      const items = state.attemptReviews[attempt.id];
+
+      if (!items || !items.length) {
+        listEl.innerHTML = `
+          <div class="p-6 rounded-lg bg-slate-50 border border-slate-200 text-center text-sm text-slate-600 space-y-1">
+            <p class="font-semibold text-slate-800">Detailed question breakdown wasn't recorded for this older test.</p>
+            <p class="text-xs">All tests you submit from now on will save every Correct, Wrong, and Not Attempted question here automatically. For earlier tests, wrong and skipped questions are in the <strong>Error Log</strong> tab.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const filtered = items.filter(it => filter === 'ALL' || it.status === filter);
+      if (!filtered.length) {
+        listEl.innerHTML = '<div class="p-6 text-center text-sm text-slate-500">No questions in this filter.</div>';
+        return;
+      }
+
+      listEl.innerHTML = filtered.map((it, idx) => {
+        const q = state.questions.find(item => item.id === it.question_id);
+        if (!q) return '';
+        const badge = it.status === 'CORRECT'
+          ? '<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-semibold">Correct</span>'
+          : it.status === 'WRONG'
+            ? '<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-xs font-semibold">Wrong</span>'
+            : '<span class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Not Attempted</span>';
+
+        return `
+          <div class="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-indigo-600">#${idx + 1} • ${escapeHtml(q.subject)} • ${escapeHtml(q.topic)}</span>
+              ${badge}
+            </div>
+            <div class="text-sm font-semibold text-slate-900 space-y-1">${formatQuestionHtml(q.question_text)}</div>
+            <p class="text-xs text-slate-700">Your Choice: <strong>${it.selected_option || 'Not Attempted'}</strong> | Correct: <strong class="text-emerald-700">${q.correct_option}</strong></p>
+            <p class="text-xs text-slate-600 whitespace-pre-line">${escapeHtml(q.explanation)}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
     function renderErrorLogs() {
       const openCount = state.errorLogs.filter(e => !e.mastered).length;
       document.getElementById('error-badge').textContent = openCount;
@@ -923,7 +1141,7 @@
               </button>
             </div>
           </div>
-          <p class="text-sm font-semibold text-slate-900 whitespace-pre-line">${escapeHtml(q.question_text)}</p>
+          <div class="text-sm font-semibold text-slate-900 space-y-1">${formatQuestionHtml(q.question_text)}</div>
           <p class="text-xs text-slate-700">Your choice: <strong>${log.selected_option || 'Skipped'}</strong> | Correct: <strong class="text-emerald-700">${q.correct_option}</strong></p>
           <p class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg whitespace-pre-line">${escapeHtml(q.explanation)}</p>
         `;
@@ -961,9 +1179,6 @@
       });
     }
 
-    // =========================================================================
-    // Analytics & Question Bank UI
-    // =========================================================================
     function renderAnalytics() {
       document.getElementById('stat-total-q').textContent = state.questions.length;
       document.getElementById('stat-tests').textContent = state.attempts.length;
@@ -974,55 +1189,73 @@
       const avgAcc = totalAtt > 0 ? Math.round((totalCorr / totalAtt) * 100) : 0;
       document.getElementById('stat-avg-acc').textContent = `${avgAcc}%`;
 
-      // Subject & Topic Weakness Breakdown
       const attemptedSet = new Set(state.attemptedIds);
       const subStats = {};
+      const ensureSub = (s) => {
+        if (!subStats[s]) subStats[s] = { attempted: 0, correct: 0, openErrors: 0, unattempted: 0, topicErrors: {} };
+      };
+
       state.questions.forEach(q => {
-        if (!subStats[q.subject]) subStats[q.subject] = { openErrors: 0, unattempted: 0, topicErrors: {} };
+        ensureSub(q.subject);
         if (!attemptedSet.has(q.id)) subStats[q.subject].unattempted++;
       });
+
+      state.attempts.forEach(a => {
+        ensureSub(a.subject);
+        subStats[a.subject].attempted += (a.attempted || 0);
+        subStats[a.subject].correct += (a.correct || 0);
+      });
+
       state.errorLogs.filter(e => !e.mastered).forEach(log => {
         const q = state.questions.find(item => item.id === log.question_id);
         if (!q) return;
-        if (!subStats[q.subject]) subStats[q.subject] = { openErrors: 0, unattempted: 0, topicErrors: {} };
+        ensureSub(q.subject);
         subStats[q.subject].openErrors++;
         subStats[q.subject].topicErrors[q.topic] = (subStats[q.subject].topicErrors[q.topic] || 0) + 1;
       });
 
-      const weakRows = Object.entries(subStats)
-        .sort((a, b) => b[1].openErrors - a[1].openErrors);
+      const weakRows = Object.entries(subStats).sort((a, b) => b[1].openErrors - a[1].openErrors);
       const weakBody = document.getElementById('weakness-table-body');
       weakBody.innerHTML = weakRows.length === 0
-        ? '<tr><td colspan="4" class="py-4 text-center text-slate-400">No data yet.</td></tr>'
+        ? '<tr><td colspan="5" class="py-4 text-center text-slate-400">No data yet.</td></tr>'
         : weakRows.map(([sub, data]) => {
+            const accStr = data.attempted > 0 ? `${Math.round((data.correct / data.attempted) * 100)}% (${data.correct}/${data.attempted})` : '—';
             const topTopicEntry = Object.entries(data.topicErrors).sort((a, b) => b[1] - a[1])[0];
             const topTopic = topTopicEntry ? `${topTopicEntry[0]} (${topTopicEntry[1]})` : '—';
             return `
               <tr>
                 <td class="py-2.5 px-3 font-medium text-slate-900">${escapeHtml(sub)}</td>
+                <td class="py-2.5 px-3 text-right font-semibold text-indigo-700">${accStr}</td>
                 <td class="py-2.5 px-3 text-slate-600">${escapeHtml(topTopic)}</td>
                 <td class="py-2.5 px-3 text-right font-semibold ${data.openErrors > 0 ? 'text-rose-700' : 'text-slate-500'}">${data.openErrors}</td>
-                <td class="py-2.5 px-3 text-right text-indigo-700 font-medium">${data.unattempted}</td>
+                <td class="py-2.5 px-3 text-right text-slate-700 font-medium">${data.unattempted}</td>
               </tr>
             `;
           }).join('');
 
       const tbody = document.getElementById('attempts-table-body');
       if (state.attempts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400">No tests submitted yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">No tests submitted yet.</td></tr>';
         return;
       }
 
-      tbody.innerHTML = state.attempts.slice(0, 20).map(a => `
-        <tr>
+      tbody.innerHTML = '';
+      state.attempts.slice(0, 20).forEach(a => {
+        const rowAcc = a.attempted > 0 ? Math.round((a.correct / a.attempted) * 100) : 0;
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-indigo-50/50 cursor-pointer transition';
+        tr.innerHTML = `
           <td class="py-2.5 px-3 text-slate-600">${new Date(a.created_at).toLocaleDateString()}</td>
-          <td class="py-2.5 px-3 font-medium text-slate-900">${escapeHtml(a.subject)}</td>
+          <td class="py-2.5 px-3 font-medium text-indigo-700 underline decoration-indigo-200 underline-offset-2">${escapeHtml(a.subject)}</td>
           <td class="py-2.5 px-3 text-right">${a.attempted}/${a.total_questions}</td>
           <td class="py-2.5 px-3 text-right text-emerald-700 font-semibold">${a.correct}</td>
           <td class="py-2.5 px-3 text-right text-rose-700 font-semibold">${a.wrong}</td>
+          <td class="py-2.5 px-3 text-right font-semibold text-slate-700">${rowAcc}%</td>
           <td class="py-2.5 px-3 text-right font-bold text-indigo-700">${Number(a.net_score).toFixed(2)}</td>
-        </tr>
-      `).join('');
+        `;
+        tr.addEventListener('click', () => openAttemptAnalysis(a));
+        tbody.appendChild(tr);
+      });
     }
 
     function renderQuestionBank() {
@@ -1046,9 +1279,6 @@
       `).join('');
     }
 
-    // =========================================================================
-    // CSV Parser
-    // =========================================================================
     function parseCSV(text) {
       const rows = [];
       let row = [];
@@ -1089,9 +1319,6 @@
       renderQuestionBank();
     }
 
-    // =========================================================================
-    // Event Listeners & Initialization
-    // =========================================================================
     document.addEventListener('DOMContentLoaded', () => {
       loadLocal();
       renderWeekdayRotationBadge();
@@ -1146,11 +1373,35 @@
         renderQuestion();
       });
 
+      document.getElementById('toggle-review-btn').addEventListener('click', () => {
+        const q = activeQuiz.questions[activeQuiz.index];
+        if (activeQuiz.markedForReview.has(q.id)) {
+          activeQuiz.markedForReview.delete(q.id);
+        } else {
+          activeQuiz.markedForReview.add(q.id);
+        }
+        renderQuestion();
+      });
+
+      document.getElementById('toggle-palette-btn').addEventListener('click', () => {
+        document.getElementById('question-palette-box').classList.toggle('hidden');
+      });
+
       document.getElementById('submit-quiz-btn').addEventListener('click', openSubmitModal);
       document.getElementById('cancel-submit-btn').addEventListener('click', () => {
         document.getElementById('submit-modal').classList.add('hidden');
       });
       document.getElementById('confirm-submit-btn').addEventListener('click', submitQuiz);
+
+      document.getElementById('close-attempt-modal-btn').addEventListener('click', () => {
+        document.getElementById('attempt-modal').classList.add('hidden');
+      });
+      document.querySelectorAll('.attempt-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeAttemptModal.filter = btn.dataset.filter;
+          renderAttemptModalList();
+        });
+      });
 
       document.getElementById('quit-quiz-btn').addEventListener('click', () => {
         if (activeQuiz.timerId) clearInterval(activeQuiz.timerId);
