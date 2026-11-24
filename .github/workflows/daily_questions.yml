@@ -2,8 +2,8 @@ name: Daily APPSC Group 2 Question Generator
 
 on:
   schedule:
-    # Runs daily at 0:00 UTC = 5:30 AM IST
-    - cron: '0 0 * * *'
+        # Runs daily at 22:47 UTC = 4:17 AM IST
+    - cron: '47 22 * * *'
   workflow_dispatch:
     inputs:
       subject:
