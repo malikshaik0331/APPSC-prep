@@ -251,7 +251,9 @@ def discover_backup_models() -> list[str]:
         if "generateContent" in methods and name != PRIMARY_MODEL and ("flash" in name or "pro" in name):
             if "tts" not in name and "image" not in name and "audio" not in name:
                 models.append(name)
-    return sorted(models, reverse=True)
+    # Prefer full flash/pro models before lite models
+    models.sort(key=lambda x: ("lite" in x, x), reverse=False)
+    return models
 
 
 def call_gemini_model(model: str, prompt: str) -> dict:
@@ -275,13 +277,14 @@ def call_gemini_model(model: str, prompt: str) -> dict:
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=180) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
 def fetch_questions_from_gemini(
     subject: str,
-    batch_focus: str,
+    unit_a: str,
+    unit_b: str,
     count: int,
     batch_num: int,
     total_batches: int,
@@ -289,28 +292,29 @@ def fetch_questions_from_gemini(
 ) -> list[dict]:
     global ACTIVE_MODEL
     basic_note = ""
-    if "Medieval" in subject or "Medieval" in batch_focus:
+    if "Medieval" in subject or "Medieval" in unit_a or "Medieval" in unit_b:
         basic_note = "- IMPORTANT: Keep Medieval Indian History questions strictly at a BASIC foundational level (major dynasties, rulers, monuments, Bhakti/Sufi basics).\n"
 
     forbidden_block = ""
     if forbidden_snippets:
-        sample = "\n".join(f"- {s[:110]}" for s in forbidden_snippets[-45:])
+        sample = "\n".join(f"- {s[:100]}" for s in forbidden_snippets[-40:])
         forbidden_block = f"\nDO NOT REPEAT OR PARAPHRASE ANY OF THESE ALREADY-ASKED QUESTIONS:\n{sample}\n"
 
-    prompt = f"""Generate {count} UNIQUE, Degree-standard APPSC Group-II (Notification No. 37/2026) multiple-choice questions strictly within this official syllabus unit:
+    prompt = f"""Generate {count} UNIQUE, Degree-standard APPSC Group-II (Notification No. 37/2026) multiple-choice questions strictly within these two official syllabus units (10 questions from Unit A, 10 questions from Unit B):
 Subject: "{subject}"
-Official Syllabus Unit (Batch {batch_num}/{total_batches}): "{batch_focus}"
+Unit A (10 Qs): "{unit_a}"
+Unit B (10 Qs): "{unit_b}"
 
 STRICT SYLLABUS & QUALITY RULES:
-1. Stay 100% INSIDE the official syllabus unit above. Do NOT drift into out-of-syllabus dynasties, eras, or topics not listed in "{batch_focus}".
-2. Every single one of the {count} questions MUST test a DIFFERENT concept, sub-topic, ruler, article, or fact within "{batch_focus}". Never ask two questions on the same ruler, inscription, or event in this batch.
+1. Stay 100% INSIDE Unit A and Unit B above. Do NOT drift into out-of-syllabus dynasties, eras, or topics.
+2. Every single one of the {count} questions MUST test a DIFFERENT concept, sub-topic, ruler, article, or fact. Never ask two questions on the same ruler, inscription, or event.
 3. At least 80% MUST be analytical/multi-statement questions:
    - "Consider the following statements: 1... 2... 3... Which of the statements given above is/are correct?"
    - "How many of the above pairs are correctly matched?"
    - "Assertion (A) and Reason (R)"
    - "Arrange the following in chronological order"
-   - "Match List-I with List-II" (use unique, non-cliche items; DO NOT repeat common textbook sets like Aihole/Hathigumpha/Junagadh/Allahabad Pillar unless specifically required by the unit).
-4. Put subtle conceptual traps in statements (e.g., swapping two rulers/committees, changing an administrative term, inverting cause-and-effect, or mixing up provisions).
+   - "Match List-I with List-II" (use unique, non-cliche items; DO NOT repeat common textbook sets like Aihole/Hathigumpha/Junagadh/Allahabad Pillar unless specifically required).
+4. Put subtle conceptual traps in statements (e.g., swapping two rulers/committees, changing an administrative term, inverting cause-and-effect).
 5. Format multi-statement questions with clean \\n line breaks before each numbered statement.
 {basic_note}{forbidden_block}
 Return ONLY a valid JSON array of {count} objects with these exact keys:
@@ -331,8 +335,8 @@ Return ONLY a valid JSON array of {count} objects with these exact keys:
     try:
         data = call_gemini_model(ACTIVE_MODEL, prompt)
     except Exception as primary_err:
-        print(f"Model {ACTIVE_MODEL} unavailable ({primary_err}); waiting 10s and trying backup models...")
-        time.sleep(10)
+        print(f"Model {ACTIVE_MODEL} unavailable ({primary_err}); waiting 15s and trying backup models...")
+        time.sleep(15)
         for backup in discover_backup_models():
             try:
                 data = call_gemini_model(backup, prompt)
@@ -340,13 +344,13 @@ Return ONLY a valid JSON array of {count} objects with these exact keys:
                 print(f"Switched active model to: {backup}")
                 break
             except urllib.error.HTTPError as herr:
-                if herr.code == 429:
-                    time.sleep(5)
+                if herr.code in (429, 503):
+                    time.sleep(10)
                 continue
             except Exception:
                 continue
         if data is None:
-            raise RuntimeError(f"All models failed for batch {batch_num}: {primary_err}")
+            raise RuntimeError(f"All models failed for batch {batch_num}/{total_batches}: {primary_err}")
 
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     questions = json.loads(raw_text)
@@ -405,23 +409,26 @@ def insert_into_supabase(questions: list[dict]) -> None:
 def main() -> None:
     now_ist = datetime.now(IST)
     subject = resolve_subject_for_today(now_ist.date())
-    batch_topics = SUBJECT_BATCH_TOPICS[subject]
-    total_batches = len(batch_topics)
-    batch_size = 10
+    units = SUBJECT_BATCH_TOPICS[subject]
+    paired_batches = [(units[i], units[i + 1]) for i in range(0, len(units), 2)]
+    total_batches = len(paired_batches)
+    batch_size = 20
 
     existing_texts = fetch_existing_questions(subject)
     seen_normalized = [normalize_text(t) for t in existing_texts]
     forbidden_snippets = list(existing_texts)
     total_inserted = 0
 
-    print(f"[{now_ist.isoformat()}] Generating 100 syllabus-aligned questions across {total_batches} units for: {subject} (existing in DB: {len(existing_texts)})")
+    print(f"[{now_ist.isoformat()}] Generating 100 syllabus-aligned questions ({total_batches}x{batch_size}) for: {subject} (existing in DB: {len(existing_texts)})")
 
-    for idx, batch_focus in enumerate(batch_topics, start=1):
+    for idx, (unit_a, unit_b) in enumerate(paired_batches, start=1):
+        succeeded = False
         for attempt in (1, 2, 3):
             try:
                 raw_batch = fetch_questions_from_gemini(
                     subject=subject,
-                    batch_focus=batch_focus,
+                    unit_a=unit_a,
+                    unit_b=unit_b,
                     count=batch_size,
                     batch_num=idx,
                     total_batches=total_batches,
@@ -438,18 +445,22 @@ def main() -> None:
 
                 insert_into_supabase(unique_batch)
                 total_inserted += len(unique_batch)
-                print(f"Batch {idx}/{total_batches} ({batch_focus[:40]}...): inserted {len(unique_batch)} unique questions (total={total_inserted}).")
+                print(f"Batch {idx}/{total_batches}: inserted {len(unique_batch)} unique questions (total={total_inserted}).")
+                succeeded = True
                 if idx < total_batches:
-                    time.sleep(12)  # Stay safely under free-tier per-minute rate limits
+                    time.sleep(15)
                 break
             except Exception as exc:
                 print(f"Batch {idx} attempt {attempt} failed: {exc}")
-                if attempt == 3:
-                    raise
-                wait_sec = 65 if "429" in str(exc) else 20
-                print(f"Waiting {wait_sec}s before retry...")
-                time.sleep(wait_sec)
+                if attempt < 3:
+                    wait_sec = 60 if ("429" in str(exc) or "503" in str(exc)) else 20
+                    print(f"Waiting {wait_sec}s before retry...")
+                    time.sleep(wait_sec)
+        if not succeeded:
+            print(f"Skipping batch {idx} after 3 attempts so remaining batches can still complete.")
 
+    if total_inserted == 0:
+        raise RuntimeError("No questions could be generated due to Gemini API outage.")
     print(f"Successfully inserted {total_inserted} unique {subject} questions into Supabase.")
 
 
