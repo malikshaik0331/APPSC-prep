@@ -187,6 +187,8 @@ CALENDAR_WEEKDAY_MAP = {
     6: "Prelims Full-Length Mock",
 }
 
+ACTIVE_MODEL = PRIMARY_MODEL
+
 
 def resolve_subject_for_today(today_ist: date) -> str:
     if TARGET_SUBJECT in SUBJECT_BATCH_TOPICS:
@@ -285,6 +287,7 @@ def fetch_questions_from_gemini(
     total_batches: int,
     forbidden_snippets: list[str],
 ) -> list[dict]:
+    global ACTIVE_MODEL
     basic_note = ""
     if "Medieval" in subject or "Medieval" in batch_focus:
         basic_note = "- IMPORTANT: Keep Medieval Indian History questions strictly at a BASIC foundational level (major dynasties, rulers, monuments, Bhakti/Sufi basics).\n"
@@ -326,18 +329,24 @@ Return ONLY a valid JSON array of {count} objects with these exact keys:
 
     data = None
     try:
-        data = call_gemini_model(PRIMARY_MODEL, prompt)
+        data = call_gemini_model(ACTIVE_MODEL, prompt)
     except Exception as primary_err:
-        print(f"Primary model {PRIMARY_MODEL} unavailable ({primary_err}); discovering live backup models...")
+        print(f"Model {ACTIVE_MODEL} unavailable ({primary_err}); waiting 10s and trying backup models...")
+        time.sleep(10)
         for backup in discover_backup_models():
             try:
                 data = call_gemini_model(backup, prompt)
-                print(f"Succeeded with backup model: {backup}")
+                ACTIVE_MODEL = backup
+                print(f"Switched active model to: {backup}")
                 break
+            except urllib.error.HTTPError as herr:
+                if herr.code == 429:
+                    time.sleep(5)
+                continue
             except Exception:
                 continue
         if data is None:
-            raise RuntimeError(f"Primary and all backup models failed. Primary error: {primary_err}")
+            raise RuntimeError(f"All models failed for batch {batch_num}: {primary_err}")
 
     raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
     questions = json.loads(raw_text)
@@ -408,7 +417,7 @@ def main() -> None:
     print(f"[{now_ist.isoformat()}] Generating 100 syllabus-aligned questions across {total_batches} units for: {subject} (existing in DB: {len(existing_texts)})")
 
     for idx, batch_focus in enumerate(batch_topics, start=1):
-        for attempt in (1, 2):
+        for attempt in (1, 2, 3):
             try:
                 raw_batch = fetch_questions_from_gemini(
                     subject=subject,
@@ -430,12 +439,16 @@ def main() -> None:
                 insert_into_supabase(unique_batch)
                 total_inserted += len(unique_batch)
                 print(f"Batch {idx}/{total_batches} ({batch_focus[:40]}...): inserted {len(unique_batch)} unique questions (total={total_inserted}).")
+                if idx < total_batches:
+                    time.sleep(12)  # Stay safely under free-tier per-minute rate limits
                 break
             except Exception as exc:
                 print(f"Batch {idx} attempt {attempt} failed: {exc}")
-                if attempt == 2:
+                if attempt == 3:
                     raise
-                time.sleep(15)
+                wait_sec = 65 if "429" in str(exc) else 20
+                print(f"Waiting {wait_sec}s before retry...")
+                time.sleep(wait_sec)
 
     print(f"Successfully inserted {total_inserted} unique {subject} questions into Supabase.")
 
